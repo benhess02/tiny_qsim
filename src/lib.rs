@@ -101,15 +101,27 @@ impl Gate {
     }
 }
 
-pub struct QuantumState {
+#[derive(Clone, Copy)]
+pub struct Qubit {
+    index: usize,
+}
+
+pub struct QuantumSystem {
     states: Vec<Complex<f32>>,
 }
 
-impl QuantumState {
-    pub fn new(qubits: usize) -> Self {
-        let mut states = vec![Complex::ZERO; 1 << qubits];
-        states[0] = Complex::ONE;
-        Self { states }
+impl QuantumSystem {
+    pub fn new() -> Self {
+        Self {
+            states: vec![Complex::ONE],
+        }
+    }
+
+    pub fn new_qubit(&mut self) -> Qubit {
+        self.states.resize(self.states.len() * 2, Complex::ZERO);
+        Qubit {
+            index: self.states.len().trailing_zeros() as usize - 1,
+        }
     }
 
     /// Returns the number of basis states
@@ -135,7 +147,7 @@ impl QuantumState {
     }
 
     /// Applies the specified gate to the current quantum state with control qubits
-    pub fn apply_controlled(&mut self, gate: &Gate, controls: &[usize], targets: &[usize]) {
+    pub fn apply_controlled(&mut self, gate: &Gate, controls: &[Qubit], targets: &[Qubit]) {
         // The complete matrix to apply is the tensor product of the provided
         // unitary matrix (for the parameter qubits) and the identity matrix
         // (for the unaffected qubits). This means the resulting matrix will be divided
@@ -156,21 +168,21 @@ impl QuantumState {
 
         let mut control_mask = 0;
         for q in controls {
-            if (control_mask & (1 << q)) != 0 {
+            if (control_mask & (1 << q.index)) != 0 {
                 panic!("duplicate control qubit");
             }
-            control_mask |= 1 << q;
+            control_mask |= 1 << q.index;
         }
 
         let mut target_mask = 0;
         for q in targets {
-            if (target_mask & (1 << q)) != 0 {
+            if (target_mask & (1 << q.index)) != 0 {
                 panic!("duplicate target qubit");
             }
-            if (control_mask & (1 << q)) != 0 {
+            if (control_mask & (1 << q.index)) != 0 {
                 panic!("control qubit cannot be used as target");
             }
-            target_mask |= 1 << q;
+            target_mask |= 1 << q.index;
         }
 
         // Calculate the offsets of each row or column to the corresponding state indices in a block
@@ -178,7 +190,7 @@ impl QuantumState {
         for r in 0..gate.size() {
             let mut block_offset: usize = 0;
             for i in 0..targets.len() {
-                block_offset |= ((r >> i) & 1) << targets[targets.len() - 1 - i];
+                block_offset |= ((r >> i) & 1) << targets[targets.len() - 1 - i].index;
             }
             block_offsets.push(block_offset);
         }
@@ -210,15 +222,15 @@ impl QuantumState {
     }
 
     /// Applies the specified gate to the current quantum state
-    pub fn apply(&mut self, gate: &Gate, targets: &[usize]) {
+    pub fn apply(&mut self, gate: &Gate, targets: &[Qubit]) {
         self.apply_controlled(gate, &[], targets);
     }
 
     /// Measures the values of the provided qubits, collapsing their wavefunction
-    pub fn measure(&mut self, qubits: &[usize]) -> usize {
+    pub fn measure(&mut self, qubits: &[Qubit]) -> usize {
         let mut mask = 0;
         for q in qubits {
-            mask |= 1 << q;
+            mask |= 1 << q.index;
         }
 
         // Choose a result
@@ -251,29 +263,21 @@ impl QuantumState {
 
         let mut result = 0;
         for i in 0..qubits.len() {
-            result |= ((collapsed >> qubits[i]) & 1) << i;
+            result |= ((collapsed >> qubits[i].index) & 1) << i;
         }
         return result;
     }
 
-    /// Returns the probability of measuring the entire system in the provided state
-    pub fn probability(&self, state: usize) -> f32 {
-        if state >= self.states.len() {
-            panic!("invalid state");
-        }
-        self.states[state].abs().powi(2)
-    }
-
-    /// Returns the probability of measuring all of the provided qubits as 1
-    pub fn qubit_probability(&self, qubits: &[usize]) -> f32 {
+    /// Returns the probability of measuring the provided qubits in the provided state
+    pub fn probability(&self, qubits: &[Qubit], state: usize) -> f32 {
         let mut mask = 0;
         for q in qubits {
-            mask |= 1 << q;
+            mask |= 1 << q.index;
         }
 
         let mut result = 0.;
         for i in 0..self.states.len() {
-            if (!i & mask) == 0 {
+            if (i & mask) == state {
                 result += self.states[i].abs().powi(2);
             }
         }

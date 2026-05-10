@@ -1,21 +1,19 @@
 // This example demonstrates using quantum teleportation to
 // transfer the complete quantum state of a qubit
 
-use tiny_qsim::{Gate, QuantumState};
+use tiny_qsim::{Gate, QuantumSystem};
 
 fn main() {
-    const A: usize = 0;
-    const B: usize = 1;
-    const Q: usize = 2;
-    const C: usize = 3;
-    let mut s = QuantumState::new(4);
+    let mut s = QuantumSystem::new();
 
     // *** SETUP ***
     // Qubits A and B are setup as an entangled pair in the Bell state.
     // A is given to the sender, and B to the reciever.
     // This can happen at any time before the teleportation.
-    s.apply(&Gate::h(), &[A]);
-    s.apply_controlled(&Gate::x(), &[A], &[B]);
+    let a = s.new_qubit();
+    let b = s.new_qubit();
+    s.apply(&Gate::h(), &[a]);
+    s.apply_controlled(&Gate::x(), &[a], &[b]);
 
     // *** SENDER ***
     // Q is the qubit to be teleported. The state of Q does not need to
@@ -23,17 +21,19 @@ fn main() {
     // For this example, Q and C are entangled in a Bell state.
     // C is an external qubit which also does not need to be
     // known by the sender to reciever.
-    s.apply(&Gate::h(), &[Q]);
-    s.apply_controlled(&Gate::x(), &[Q], &[C]);
+    let q = s.new_qubit();
+    let c = s.new_qubit();
+    s.apply(&Gate::h(), &[q]);
+    s.apply_controlled(&Gate::x(), &[q], &[c]);
 
     // The sender applies a CNOT to Q and A, then a hadamard gate to A.
-    s.apply_controlled(&Gate::x(), &[Q], &[A]);
-    s.apply(&Gate::h(), &[Q]);
+    s.apply_controlled(&Gate::x(), &[q], &[a]);
+    s.apply(&Gate::h(), &[q]);
 
     // The sender measures A and Q then transmits the results as
     // two classical bits to the reciever.
-    let measured_a = s.measure(&[A]) == 1;
-    let measured_q = s.measure(&[Q]) == 2;
+    let measured_a = s.measure(&[a]) == 1;
+    let measured_q = s.measure(&[q]) == 2;
 
     // *** RECIEVER ***
     // After the measurement on A by the sender, the qubit B is now in
@@ -41,16 +41,16 @@ fn main() {
     // transmitted by the sender encode this information and can be
     // used to transform B into original quantum state of Q.
     if measured_a {
-        s.apply(&Gate::x(), &[B]);
+        s.apply(&Gate::x(), &[b]);
     }
     if measured_q {
-        s.apply(&Gate::z(), &[B]);
+        s.apply(&Gate::z(), &[b]);
     }
 
     // B now has the exact same quantum state that Q had originally,
     // including correlations with other qubits.
     // In this case, B and C will always have the same value since
     // they are entangled, as Q and C were originally.
-    println!("B = {}", s.measure(&[B]));
-    println!("C = {}", s.measure(&[C]));
+    println!("B = {}", s.measure(&[b]));
+    println!("C = {}", s.measure(&[c]));
 }
