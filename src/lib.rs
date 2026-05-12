@@ -285,6 +285,18 @@ impl QuantumSystem {
         }
         return result;
     }
+
+    /// Returns the concurrence of the state of two qubits
+    pub fn concurrence(&self, a: Qubit, b: Qubit) -> f32 {
+        let mut matrix: [Complex<f32>; 4] = [Complex::ZERO; 4];
+        for i in 0..self.states.len() {
+            let a_state = (i >> a.index) & 1;
+            let b_state = (i >> b.index) & 1;
+            let index = a_state | (b_state << 1);
+            matrix[index] += self.states[i];
+        }
+        return 2. * (matrix[0] * matrix[3] - matrix[1] * matrix[2]).abs();
+    }
 }
 
 #[cfg(test)]
@@ -394,5 +406,24 @@ mod tests {
         let c = s.new_qubit();
         let t = s.new_qubit();
         s.apply_controlled(&Gate::swap(), &[c, t], &[t]);
+    }
+
+    #[test]
+    fn test_concurrence_seperable() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        let b = s.new_qubit();
+        s.apply(&Gate::h(), &[a, b]);
+        assert!(s.concurrence(a, b).abs() <= f32::EPSILON);
+    }
+
+    #[test]
+    fn test_concurrence_entangled() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        let b = s.new_qubit();
+        s.apply(&Gate::h(), &[a]);
+        s.apply_controlled(&Gate::x(), &[a], &[b]);
+        assert!((s.concurrence(a, b) - 1.).abs() <= f32::EPSILON);
     }
 }
