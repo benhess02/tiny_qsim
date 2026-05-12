@@ -271,16 +271,128 @@ impl QuantumSystem {
     /// Returns the probability of measuring the provided qubits in the provided state
     pub fn probability(&self, qubits: &[Qubit], state: usize) -> f32 {
         let mut mask = 0;
-        for q in qubits {
-            mask |= 1 << q.index;
+        let mut _state = 0;
+        for i in 0..qubits.len() {
+            mask |= 1 << qubits[i].index;
+            _state |= ((state >> i) & 1) << qubits[i].index;
         }
 
         let mut result = 0.;
         for i in 0..self.states.len() {
-            if (i & mask) == state {
+            if (i & mask) == _state {
                 result += self.states[i].abs().powi(2);
             }
         }
         return result;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Gate, QuantumSystem};
+
+    #[test]
+    fn test_measure_zero() {
+        let mut s = QuantumSystem::new();
+        let q = s.new_qubit();
+        assert!(s.measure(&[q]) == 0);
+    }
+
+    #[test]
+    fn test_measure_pauli_x() {
+        let mut s = QuantumSystem::new();
+        let q = s.new_qubit();
+        s.apply(&Gate::x(), &[q]);
+        assert!(s.measure(&[q]) == 1);
+    }
+
+    #[test]
+    fn test_measure_entangled() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        s.new_qubit();
+        let b = s.new_qubit();
+        s.apply(&Gate::h(), &[a]);
+        s.apply_controlled(&Gate::x(), &[a], &[b]);
+        let result = s.measure(&[a, b]);
+        assert!(result == 0b00 || result == 0b11);
+    }
+
+    #[test]
+    fn test_single_probability() {
+        let mut s = QuantumSystem::new();
+        let other = s.new_qubit();
+        s.apply(&Gate::h(), &[other]);
+        let q = s.new_qubit();
+        s.apply(&Gate::h(), &[q]);
+        assert!((s.probability(&[q], 1) - 0.5).abs() <= f32::EPSILON);
+    }
+
+    #[test]
+    fn test_multi_probability() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        s.new_qubit();
+        let b = s.new_qubit();
+        s.apply(&Gate::h(), &[a]);
+        s.apply_controlled(&Gate::x(), &[a], &[b]);
+        assert!((s.probability(&[a, b], 0b00) - 0.5).abs() <= f32::EPSILON);
+        assert!((s.probability(&[a, b], 0b11) - 0.5).abs() <= f32::EPSILON);
+        assert!(s.probability(&[a, b], 0b01).abs() <= f32::EPSILON);
+        assert!(s.probability(&[a, b], 0b10).abs() <= f32::EPSILON);
+    }
+
+    #[test]
+    fn test_apply_multi() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        let b = s.new_qubit();
+        s.apply(&Gate::h(), &[a, b]);
+        assert!((s.probability(&[a], 1) - 0.5).abs() <= f32::EPSILON);
+        assert!((s.probability(&[b], 1) - 0.5).abs() <= f32::EPSILON);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_apply_multi_swap() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        let b = s.new_qubit();
+        let c = s.new_qubit();
+        s.apply(&Gate::swap(), &[a, b, c]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_apply_single_swap() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        s.apply(&Gate::swap(), &[a]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_apply_duplicate() {
+        let mut s = QuantumSystem::new();
+        let a = s.new_qubit();
+        s.apply(&Gate::swap(), &[a, a]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_apply_controlled_duplicate() {
+        let mut s = QuantumSystem::new();
+        let c = s.new_qubit();
+        let t = s.new_qubit();
+        s.apply_controlled(&Gate::swap(), &[c, c], &[t]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_apply_controlled_target_control() {
+        let mut s = QuantumSystem::new();
+        let c = s.new_qubit();
+        let t = s.new_qubit();
+        s.apply_controlled(&Gate::swap(), &[c, t], &[t]);
     }
 }
