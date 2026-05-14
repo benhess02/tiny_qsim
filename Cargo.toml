@@ -1,3 +1,7 @@
+[workspace]
+resolver = "3"
+members=["demo/demo_core"]
+
 [package]
 name = "tiny_qsim"
 version = "0.1.0"
