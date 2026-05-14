@@ -3,7 +3,7 @@
 use tiny_qsim::{Gate, QuantumSystem};
 
 fn main() {
-    let mut s = QuantumSystem::new();
+    let mut s = QuantumSystem::new(rand::rng());
     let a = s.new_qubit();
     let b = s.new_qubit();
 

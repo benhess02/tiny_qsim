@@ -1,4 +1,5 @@
 use num::{Complex, complex::ComplexFloat};
+use rand::{Rng, RngExt};
 
 #[derive(Clone)]
 pub struct Gate {
@@ -106,13 +107,15 @@ pub struct Qubit {
     index: usize,
 }
 
-pub struct QuantumSystem {
+pub struct QuantumSystem<R: Rng> {
+    rng: R,
     states: Vec<Complex<f32>>,
 }
 
-impl QuantumSystem {
-    pub fn new() -> Self {
+impl<R: Rng> QuantumSystem<R> {
+    pub fn new(rng: R) -> Self {
         Self {
+            rng,
             states: vec![Complex::ONE],
         }
     }
@@ -234,7 +237,7 @@ impl QuantumSystem {
         }
 
         // Choose a result
-        let r: f32 = rand::random();
+        let r: f32 = self.rng.random();
         let mut sum = 0.;
         let mut collapsed = 0;
         for i in 0..self.states.len() {
@@ -305,14 +308,14 @@ mod tests {
 
     #[test]
     fn test_measure_zero() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let q = s.new_qubit();
         assert!(s.measure(&[q]) == 0);
     }
 
     #[test]
     fn test_measure_pauli_x() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let q = s.new_qubit();
         s.apply(&Gate::x(), &[q]);
         assert!(s.measure(&[q]) == 1);
@@ -320,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_measure_entangled() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         s.new_qubit();
         let b = s.new_qubit();
@@ -332,7 +335,7 @@ mod tests {
 
     #[test]
     fn test_single_probability() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let other = s.new_qubit();
         s.apply(&Gate::h(), &[other]);
         let q = s.new_qubit();
@@ -342,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_multi_probability() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         s.new_qubit();
         let b = s.new_qubit();
@@ -356,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_apply_multi() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         let b = s.new_qubit();
         s.apply(&Gate::h(), &[a, b]);
@@ -367,7 +370,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_apply_multi_swap() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         let b = s.new_qubit();
         let c = s.new_qubit();
@@ -377,7 +380,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_apply_single_swap() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         s.apply(&Gate::swap(), &[a]);
     }
@@ -385,7 +388,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_apply_duplicate() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         s.apply(&Gate::swap(), &[a, a]);
     }
@@ -393,7 +396,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_apply_controlled_duplicate() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let c = s.new_qubit();
         let t = s.new_qubit();
         s.apply_controlled(&Gate::swap(), &[c, c], &[t]);
@@ -402,7 +405,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_apply_controlled_target_control() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let c = s.new_qubit();
         let t = s.new_qubit();
         s.apply_controlled(&Gate::swap(), &[c, t], &[t]);
@@ -410,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_concurrence_seperable() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         let b = s.new_qubit();
         s.apply(&Gate::h(), &[a, b]);
@@ -419,7 +422,7 @@ mod tests {
 
     #[test]
     fn test_concurrence_entangled() {
-        let mut s = QuantumSystem::new();
+        let mut s = QuantumSystem::new(rand::rng());
         let a = s.new_qubit();
         let b = s.new_qubit();
         s.apply(&Gate::h(), &[a]);

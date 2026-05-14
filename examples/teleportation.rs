@@ -4,7 +4,7 @@
 use tiny_qsim::{Gate, QuantumSystem};
 
 fn main() {
-    let mut s = QuantumSystem::new();
+    let mut s = QuantumSystem::new(rand::rng());
 
     // *** SETUP ***
     // Qubits A and B are setup as an entangled pair in the Bell state.

@@ -1,6 +1,7 @@
 // This example uses Grover's algorithm to solve the following 4-SAT problem:
 // (A xor B) and (A xor C) and not(C xor D) and D
 
+use rand::rngs::ThreadRng;
 use tiny_qsim::{Gate, QuantumSystem, Qubit};
 
 struct SatProblem {
@@ -14,7 +15,7 @@ struct SatProblem {
 }
 
 impl SatProblem {
-    fn new(s: &mut QuantumSystem) -> Self {
+    fn new(s: &mut QuantumSystem<ThreadRng>) -> Self {
         SatProblem {
             a: s.new_qubit(),
             b: s.new_qubit(),
@@ -27,7 +28,7 @@ impl SatProblem {
     }
 
     // Computes the results of the SAT problem from A, B, C, and D
-    fn compute(&self, s: &mut QuantumSystem) {
+    fn compute(&self, s: &mut QuantumSystem<ThreadRng>) {
         // A xor B
         s.apply_controlled(&Gate::x(), &[self.a], &[self.a_xor_b]);
         s.apply_controlled(&Gate::x(), &[self.b], &[self.a_xor_b]);
@@ -45,7 +46,7 @@ impl SatProblem {
     // The oracle reflects the quantum state across the superposition of all states
     // orthogonal to the goal. In this case, that means only flipping the amplitude
     // of the state where A, B, C, and D correctly solve the problem.
-    fn oracle(&self, s: &mut QuantumSystem) {
+    fn oracle(&self, s: &mut QuantumSystem<ThreadRng>) {
         // Compute the results
         self.compute(s);
 
@@ -62,7 +63,7 @@ impl SatProblem {
     }
 }
 
-fn diffuser(s: &mut QuantumSystem, qubits: &[Qubit]) {
+fn diffuser(s: &mut QuantumSystem<ThreadRng>, qubits: &[Qubit]) {
     // Grover's diffuser amplifies the result flipped by the oracle by reflecting
     // the quantum state across the equal superposition state
     for q in qubits {
@@ -85,7 +86,7 @@ fn diffuser(s: &mut QuantumSystem, qubits: &[Qubit]) {
 }
 
 fn main() {
-    let mut s = QuantumSystem::new();
+    let mut s = QuantumSystem::new(rand::rng());
     let problem = SatProblem::new(&mut s);
     loop {
         s.reset();
